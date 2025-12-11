@@ -1,6 +1,5 @@
--- ------------------------------------------------------
 -- Sicherheitsdrops (damit das Skript mehrfach ausführbar ist)
--- ------------------------------------------------------
+
 DROP TABLE IF EXISTS SessionSpeaker   CASCADE;
 DROP TABLE IF EXISTS BoothBooking     CASCADE;
 DROP TABLE IF EXISTS Booth            CASCADE;
@@ -18,9 +17,10 @@ DROP TABLE IF EXISTS Room             CASCADE;
 DROP TABLE IF EXISTS Event            CASCADE;
 DROP TABLE IF EXISTS Venue            CASCADE;
 
--- ======================================================
+
+
 -- 1) EVENT-, ORTS- & RAUM-MANAGEMENT
--- ======================================================
+
 
 CREATE TABLE Venue (
     venueID  SERIAL PRIMARY KEY,
@@ -59,16 +59,16 @@ CREATE TABLE TechCheck (
         FOREIGN KEY (roomID) REFERENCES Room(roomID)
 );
 
--- ======================================================
--- 2) PERSONEN & ROLLEN (SPEZIALISIERUNG)
--- ======================================================
+
+-- 2) PERSONEN & ROLLEN 
+
 
 CREATE TABLE Person (
     personID  SERIAL PRIMARY KEY,
     firstName VARCHAR(255) NOT NULL,
     lastName  VARCHAR(255) NOT NULL,
-    email     VARCHAR(255) NOT NULL
-    -- Optional: CONSTRAINT uq_person_email UNIQUE (email)
+    email     VARCHAR(255) NOT NULL,
+    CONSTRAINT uq_person_email UNIQUE (email)
 );
 
 CREATE TABLE Speaker (
@@ -92,9 +92,9 @@ CREATE TABLE Staff (
         FOREIGN KEY (personID) REFERENCES Person(personID)
 );
 
--- ======================================================
+
 -- 3) PROGRAMM- & SESSION-PLANUNG
--- ======================================================
+
 
 CREATE TABLE Track (
     trackID SERIAL PRIMARY KEY,
@@ -110,7 +110,7 @@ CREATE TABLE Session (
     startTime TIMESTAMP    NOT NULL,
     endTime   TIMESTAMP    NOT NULL,
     language  VARCHAR(50)  NOT NULL,
-    "level"   VARCHAR(50)  NOT NULL,  -- "level" gequotet, da keyword-nah
+    "level"   VARCHAR(50)  NOT NULL, 
     trackID   INT          NOT NULL,
     roomID    INT          NOT NULL,
     CONSTRAINT fk_session_track
@@ -119,9 +119,9 @@ CREATE TABLE Session (
         FOREIGN KEY (roomID)  REFERENCES Room(roomID)
 );
 
--- ======================================================
+
 -- 4) TICKETING
--- ======================================================
+
 
 CREATE TABLE TicketType (
     ticketTypeID SERIAL PRIMARY KEY,
@@ -144,9 +144,9 @@ CREATE TABLE Ticket (
         FOREIGN KEY (guestID)      REFERENCES Guest(personID)
 );
 
--- ======================================================
+
 -- 5) EXPO & STÄNDE
--- ======================================================
+
 
 CREATE TABLE Exhibitor (
     exhibitorID     SERIAL PRIMARY KEY,
@@ -165,7 +165,7 @@ CREATE TABLE Booth (
         FOREIGN KEY (eventID) REFERENCES Event(eventID)
 );
 
--- Normalisiert: eventID entfernt (transitive Abhängigkeit über boothID)
+
 CREATE TABLE BoothBooking (
     bookingID   SERIAL PRIMARY KEY,
     status      VARCHAR(50) NOT NULL,
@@ -179,15 +179,15 @@ CREATE TABLE BoothBooking (
         FOREIGN KEY (boothID)     REFERENCES Booth(boothID)
 );
 
--- ======================================================
+
 -- 6) N:M VERKNÜPFUNG SESSION-SPEAKER
--- ======================================================
+
 
 CREATE TABLE SessionSpeaker (
     personID  INT NOT NULL,
     sessionID INT NOT NULL,
     role      VARCHAR(50) NOT NULL,
-    "order"   INT,  -- "order" gequotet, da keyword
+    "order"   INT,  
 
     CONSTRAINT pk_sessionspeaker
         PRIMARY KEY (personID, sessionID),

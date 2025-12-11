@@ -1,1 +1,0 @@
-# Datenbank-Konferenz--Expo-Management
