@@ -1,46 +1,9 @@
-Datenbank-Konferenz- und Expo-Management
+Dieses Projekt umfasst die Konzeption und Umsetzung eines relationalen Datenbankmanagementsystems, das die Abläufe einer modernen Konferenz- und Expo-Veranstaltung realitätsnah modelliert. Abgebildet werden dabei zentralen Prozesse wie Veranstaltungsorte, Events, Räume, Programmpunkte, Teilnehmerrollen, Tickets sowie Aussteller und deren Messestände. Ziel war es, ein konsistentes, klar strukturiertes und vollständig normalisiertes Datenmodell zu entwickeln und dieses durch aussagekräftige SQL-Abfragen in seiner praktischen Anwendung zu demonstrieren.
 
-Dieses Projekt umfasst die Konzeption und Implementierung eines relationalen Datenbankmanagementsystems zur Verwaltung einer modernen Konferenz- und Expo-Veranstaltung. Abgebildet werden dabei sämtliche zentralen Prozesse: Veranstaltungsorte, Events, Räume, Tracks, Sessions, Personen (mit klar getrennten Rollen), Tickets sowie Aussteller und deren gebuchte Messestände. Ziel war es, ein konsistentes, normalisiertes Datenbankschema zu entwickeln und darauf aufbauend aussagekräftige SQL-Abfragen zur Analyse typischer Organisations- und Planungsszenarien zu erstellen.
+Für die Umsetzung wurde PostgreSQL als Datenbankmanagementsystem gewählt. PostgreSQL bietet eine vollständige SQL-Konformität, eine leistungsfähige Open-Source-Architektur und eine sehr robuste Unterstützung von Fremdschlüsseln, Constraints und komplexen Abfragen. Diese Eigenschaften machen PostgreSQL besonders geeignet für Projekte, die einerseits Datenintegrität erfordern und andererseits analytische Auswertungen durchführen sollen. Zudem ist PostgreSQL in der Praxis weit verbreitet, was den Bezug zur realen Anwendung verstärkt.
 
-Wahl des Datenbankmanagementsystems
+Das zugrunde liegende Datenmodell wurde vollständig nach den Prinzipien der dritten Normalform entwickelt. Dadurch entstehen klare, redundanzarme Strukturen, die eine saubere Pflege und Auswertung der Daten ermöglichen. Zentrale Entitäten wie Venue, Event, Room, Track und Session bilden das organisatorische und inhaltliche Gerüst einer Veranstaltung. Personen werden über die Basistabelle Person geführt und anschließend über Spezialisierungstabellen wie Speaker, Guest und Staff in ihre jeweiligen Rollen überführt. Darüber hinaus modellieren TicketType und Ticket den gesamten Ticketverkauf, während die Tabellen Exhibitor, Booth und BoothBooking den Expo-Bereich realistisch abbilden. Die Beziehung zwischen Sessions und Speakern wurde über eine separate N:M-Tabelle umgesetzt, um eine flexible Zuordnung mehrerer Vortragender pro Session zu ermöglichen.
 
-Für die Umsetzung haben wir PostgreSQL gewählt. Die Datenbank bietet:
-	•	vollständige SQL-Konformität
-	•	eine stabile, leistungsfähige Open-Source-Architektur
-	•	umfangreiche Unterstützung für Constraints, Fremdschlüssel und komplexe Joins
-	•	fortgeschrittene Funktionen wie Window Functions und CTEs
-	•	hohe Eignung für analytische Abfragen und Data-Insights
+Um die Funktionsweise des Systems nachvollziehbar darzustellen, wurden umfangreiche und realistische Testdaten erstellt. Sie umfassen unterschiedliche Events, internationale Speaker, Gäste aus verschiedenen Unternehmen, Sessions verschiedener Schwierigkeitsgrade, Raumgrößen, Ticketkategorien sowie Aussteller mit unterschiedlich langen Standbuchungen. Diese Daten erlauben es, sämtliche SQL-Abfragen sinnvoll zu testen und realistische Ergebnisse zu erhalten, die typische Szenarien im Event- und Expo-Management widerspiegeln.
 
-Damit erfüllt PostgreSQL alle Anforderungen unserer Aufgabenstellung. Zusätzlich ist das System in der Industrie weit verbreitet, was die Praxisrelevanz unseres Projekts erhöht.
-
-Datenmodell
-
-Ausgehend von einem konzeptionellen Entity-Relationship-Modell wurde ein vollständig normalisiertes Schema entwickelt, das Datenintegrität und klare Beziehungshierarchien sicherstellt. Zu den zentralen Entitäten gehören:
-	•	Venue, Event, Room: Abbildung der räumlichen und organisatorischen Struktur
-	•	Track, Session: Modellierung des inhaltlichen Programms
-	•	Person mit Spezialisierungen Speaker, Guest, Staff: klare Trennung der Rollen
-	•	TicketType, Ticket: Verwaltung des Ticketings
-	•	Exhibitor, Booth, BoothBooking: realistische Modellierung des Expo-Bereichs
-	•	SessionSpeaker: N:M-Beziehung zwischen Sessions und Speakern
-
-Die Modellierung folgt den Prinzipien der 3. Normalform, wodurch Redundanzen vermieden und Updates sicher durchgeführt werden können.
-
-Testdaten
-
-Zur Demonstration der Systemfunktionalität wurden umfangreiche und realistische Testdaten erstellt, die:
-	•	mehrere Veranstaltungen mit unterschiedlichen Profilen
-	•	Sprecher, Gäste und Mitarbeitende
-	•	Ticketverkäufe in verschiedenen Kategorien
-	•	Buchungen von Messeständen
-	•	überfüllte Räume für kritische Kapazitätsanalysen
-
-abbilden. Alle Tabellen sind mit konsistenten, vielseitigen Daten gefüllt, um aussagekräftige Query-Ergebnisse zu ermöglichen.
-
-SQL-Abfragen und Interpretation
-
-Eine detaillierte Beschreibung aller SQL-Abfragen findet sich im Abschnitt „queries“ dieses Projekts. Jede Anfrage ist mit einer kurzen, narrativen Interpretation versehen, die erklärt:
-	•	welches organisatorische Problem adressiert wird
-	•	welche Erkenntnisse aus der Abfrage gewonnen werden
-	•	wie diese Informationen in der Praxis genutzt werden könnten
-
-Auf diese Weise entsteht eine nachvollziehbare Verbindung zwischen Datenbankstruktur, Abfragen und realistischen Entscheidungsszenarien im Konferenz- und Expo-Management.
+Die SQL-Abfragen befinden sich im Ordner queries und wurden so strukturiert, dass sie unterschiedliche Analyseperspektiven abdecken. Jede Abfrage wird zusätzlich narrativ interpretiert, damit nachvollziehbar wird, welche konkrete Fragestellung beantwortet wird. Einige typische Themen dieser Abfragen sind etwa die Auslastung einzelner Räume im Verhältnis zur Sessionplanung, die Identifikation besonders aktiver oder gefragter Speaker, die Analyse von Umsatzstrukturen und Ticketverkäufen pro Event, die Auswertung von Besuchergruppen sowie die Untersuchung des Expo-Bereichs hinsichtlich Zonenbelegung oder strategisch wertvollen Standbuchungen. Die Abfragen verbinden somit technische Datenbankoperationen mit realen organisatorischen Fragestellungen, wie sie bei der Planung und Durchführung großer Veranstaltungen tatsächlich auftreten.
