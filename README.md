@@ -1,9 +1,91 @@
-Dieses Projekt umfasst die Konzeption und Umsetzung eines relationalen Datenbankmanagementsystems, das die Abläufe einer modernen Konferenz- und Expo-Veranstaltung realitätsnah modelliert. Abgebildet werden dabei zentralen Prozesse wie Veranstaltungsorte, Events, Räume, Programmpunkte, Teilnehmerrollen, Tickets sowie Aussteller und deren Messestände. Ziel war es, ein konsistentes, klar strukturiertes und vollständig normalisiertes Datenmodell zu entwickeln und dieses durch aussagekräftige SQL-Abfragen in seiner praktischen Anwendung zu demonstrieren.
+# Konferenz- & Expo-Management Datenbank
 
-Für die Umsetzung wurde PostgreSQL als Datenbankmanagementsystem gewählt. PostgreSQL bietet eine vollständige SQL-Konformität, eine leistungsfähige Open-Source-Architektur und eine sehr robuste Unterstützung von Fremdschlüsseln, Constraints und komplexen Abfragen. Diese Eigenschaften machen PostgreSQL besonders geeignet für Projekte, die einerseits Datenintegrität erfordern und andererseits analytische Auswertungen durchführen sollen. Zudem ist PostgreSQL in der Praxis weit verbreitet, was den Bezug zur realen Anwendung verstärkt.
+## Projektübersicht
+Dieses Projekt implementiert ein relationales Datenbanksystem zur zentralen und einheitlichen Verwaltung von Konferenzen und Ausstellungen. Das System ersetzt isolierte Planungstabellen durch eine konsistente Datenbasis, die alle Aspekte einer Veranstaltung abdeckt – von der Programmplanung über das Ressourcenmanagement bis hin zur Expo-Verwaltung.
 
-Das zugrunde liegende Datenmodell wurde vollständig nach den Prinzipien der dritten Normalform entwickelt. Dadurch entstehen klare, redundanzarme Strukturen, die eine saubere Pflege und Auswertung der Daten ermöglichen. Zentrale Entitäten wie Venue, Event, Room, Track und Session bilden das organisatorische und inhaltliche Gerüst einer Veranstaltung. Personen werden über die Basistabelle Person geführt und anschließend über Spezialisierungstabellen wie Speaker, Guest und Staff in ihre jeweiligen Rollen überführt. Darüber hinaus modellieren TicketType und Ticket den gesamten Ticketverkauf, während die Tabellen Exhibitor, Booth und BoothBooking den Expo-Bereich realistisch abbilden. Die Beziehung zwischen Sessions und Speakern wurde über eine separate N:M-Tabelle umgesetzt, um eine flexible Zuordnung mehrerer Vortragender pro Session zu ermöglichen.
+Das Ziel war die Entwicklung eines robusten Schemas, das Geschäftsregeln direkt auf Datenbankebene erzwingt, um Datenintegrität ohne vorgeschaltete Applikationslogik zu gewährleisten.
 
-Um die Funktionsweise des Systems nachvollziehbar darzustellen, wurden umfangreiche und realistische Testdaten erstellt. Sie umfassen unterschiedliche Events, internationale Speaker, Gäste aus verschiedenen Unternehmen, Sessions verschiedener Schwierigkeitsgrade, Raumgrößen, Ticketkategorien sowie Aussteller mit unterschiedlich langen Standbuchungen. Diese Daten erlauben es, sämtliche SQL-Abfragen sinnvoll zu testen und realistische Ergebnisse zu erhalten, die typische Szenarien im Event- und Expo-Management widerspiegeln.
+## Autoren
+* **Keanu Belo da Silva**
+* **Bruno Marinho**
+* **Sebastian Oliver Jung**
 
-Die SQL-Abfragen befinden sich im Ordner queries und wurden so strukturiert, dass sie unterschiedliche Analyseperspektiven abdecken. Jede Abfrage wird zusätzlich narrativ interpretiert, damit nachvollziehbar wird, welche konkrete Fragestellung beantwortet wird. Einige typische Themen dieser Abfragen sind etwa die Auslastung einzelner Räume im Verhältnis zur Sessionplanung, die Identifikation besonders aktiver oder gefragter Speaker, die Analyse von Umsatzstrukturen und Ticketverkäufen pro Event, die Auswertung von Besuchergruppen sowie die Untersuchung des Expo-Bereichs hinsichtlich Zonenbelegung oder strategisch wertvollen Standbuchungen. Die Abfragen verbinden somit technische Datenbankoperationen mit realen organisatorischen Fragestellungen, wie sie bei der Planung und Durchführung großer Veranstaltungen tatsächlich auftreten.
+---
+
+## Funktionalitäten & Umfang
+
+Die Datenbank deckt fünf Kernbereiche des Event-Managements ab:
+
+1.  **Event- & Venue-Management**
+    * Verwaltung von Veranstaltungsorten (Venues) und Events.
+    * Hierarchische Struktur: Venue -> Räume -> Sessions.
+    * Zeitliche Validierung von Veranstaltungszeiträumen.
+
+2.  **Programmplanung & Speaker**
+    * Detaillierte Session-Planung mit Zuweisung zu Tracks und Räumen.
+    * Verwaltung von Speakern, Gästen und Mitarbeitern (Spezialisierung der Entität `Person`).
+    * Vermeidung von Doppelbuchungen für Speaker und Räume.
+
+3.  **Expo- & Stand-Management**
+    * Verwaltung von Ausstellern (Exhibitors) und Standflächen (Booths).
+    * Buchungssystem mit automatischer Prüfung auf zeitliche Überschneidungen (`BoothBooking`).
+
+4.  **Ticketing**
+    * Definition von Ticket-Kategorien (z. B. VIP, Standard) mit Preisen und Kontingenten.
+    * Echtzeit-Überwachung der Ticketverfügbarkeit.
+
+5.  **Technik & Logistik**
+    * Verwaltung von technischer Ausstattung (`Equipment`) und Zuweisung zu Räumen (Grundausstattung) oder Sessions (Zusatzbedarf).
+    * Protokollierung von technischen Checks (`TechCheck`) zur Qualitätssicherung.
+
+---
+
+## Technische Implementierung
+
+Das System wurde für **PostgreSQL** optimiert, um fortgeschrittene Mechanismen zur Integritätssicherung zu nutzen.
+
+### 1. Datenintegrität & Constraints
+Es werden strikte `CHECK`-Constraints und Fremdschlüsselbeziehungen verwendet:
+* **Zeit-Logik:** Startzeiten müssen vor Endzeiten liegen (z. B. bei `Event`, `Session`).
+* **Wertebereiche:** Preise und Kapazitäten dürfen nicht negativ sein.
+* **Status-Validierung:** Beschränkung auf vordefinierte Werte (z. B. 'paid', 'cancelled') anstelle von Freitext.
+
+### 2. Konfliktvermeidung (Advanced SQL)
+Um Überbuchungen physikalisch unmöglich zu machen, werden PostgreSQL-spezifische `EXCLUDE`-Constraints verwendet:
+* **Raumbelegung:** Ein Raum kann nicht zeitgleich von zwei Sessions belegt werden.
+* **Standbuchung:** Ein Messestand kann nicht zeitgleich an zwei Aussteller vermietet werden.
+  *(Implementiert mittels `GIST`-Index und `tsrange`)*.
+
+### 3. Business-Logik durch Trigger
+Komplexe Geschäftsregeln, die mehrere Tabellen betreffen, sind durch `PL/pgSQL`-Trigger automatisiert:
+* **Speaker-Konflikt:** Verhindert, dass ein Speaker zur gleichen Zeit in zwei verschiedenen Sessions eingeplant wird.
+* **Ticket-Kontingente:** Verhindert den Verkauf von Tickets, wenn das definierte Kontingent (`Quota`) erschöpft ist.
+
+### 4. Normalisierung
+Das Schema befindet sich in der **3. Normalform (3NF)**. Redundanzen wurden entfernt (z. B. Entfernung der `eventID` aus `BoothBooking`, da diese transitiv über `Booth` abgeleitet wird), um Inkonsistenzen zu vermeiden.
+
+---
+
+## Installation & Ausführung
+
+### Voraussetzungen
+* PostgreSQL (Version 12 oder höher empfohlen)
+* Erweiterung `btree_gist` (wird im Skript aktiviert)
+
+### Schritte
+1.  **Datenbank erstellen:** Erstellen Sie eine leere Datenbank (z. B. `conference_db`).
+2.  **Struktur anlegen:** Führen Sie das Skript `Datenbank.sql` aus.
+    * *Dies erstellt alle Tabellen, Views, Constraints und Trigger.*
+3.  **Testdaten laden:** Führen Sie das Skript `testdata.sql` aus.
+    * *Dies befüllt das System mit realistischen Daten und speziellen Edge-Case-Szenarien.*
+
+---
+
+## Analyse & Abfragen
+
+Das Projekt beinhaltet eine Sammlung von SQL-Skripten zur Auswertung der Daten (`queries/`). Neben Standard-Reports (Umsatz, Belegung) sind komplexe analytische Abfragen enthalten:
+
+* **Risiko-Analyse:** Identifikation von Sessions ohne erfolgreichen TechCheck kurz vor Start.
+* **Logistik-Planung:** Ermittlung von Sessions mit hohem Materialbedarf.
+* **Performance-Metriken:** Vergleich von inhaltlicher Dichte (Anzahl Sessions) und wirtschaftlichem Erfolg (Umsatz) pro Event.
+* **Stress-Test:** Identifikation von Speakern mit kritisch kurzen Pausen zwischen Sessions.
