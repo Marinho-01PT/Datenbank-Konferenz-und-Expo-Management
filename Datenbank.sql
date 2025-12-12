@@ -17,6 +17,10 @@ DROP TABLE IF EXISTS TechCheck        CASCADE;
 DROP TABLE IF EXISTS Room             CASCADE;
 DROP TABLE IF EXISTS Event            CASCADE;
 DROP TABLE IF EXISTS Venue            CASCADE;
+DROP TABLE IF EXISTS SessionEquipment CASCADE;
+DROP TABLE IF EXISTS RoomEquipment    CASCADE;
+DROP TABLE IF EXISTS Equipment        CASCADE;
+
 
 -- ======================================================
 -- 1) EVENT-, ORTS- & RAUM-MANAGEMENT
@@ -68,7 +72,6 @@ CREATE TABLE Person (
     firstName VARCHAR(255) NOT NULL,
     lastName  VARCHAR(255) NOT NULL,
     email     VARCHAR(255) NOT NULL
-    -- Optional: CONSTRAINT uq_person_email UNIQUE (email)
 );
 
 CREATE TABLE Speaker (
@@ -198,3 +201,148 @@ CREATE TABLE SessionSpeaker (
     CONSTRAINT fk_sessionspeaker_session
         FOREIGN KEY (sessionID) REFERENCES Session(sessionID)
 );
+
+-- ======================================================
+-- 6b) EQUIPMENT & MATERIAL (WIEDER EINGEFÜGT)
+-- ======================================================
+
+CREATE TABLE Equipment (
+    equipmentID SERIAL PRIMARY KEY,
+    name        VARCHAR(255) NOT NULL,
+    description TEXT
+);
+
+-- n:m Beziehung: Was ist standardmäßig im Raum?
+CREATE TABLE RoomEquipment (
+    roomID      INT NOT NULL,
+    equipmentID INT NOT NULL,
+    amount      INT DEFAULT 1 CHECK (amount > 0),
+
+    CONSTRAINT pk_roomequipment
+       PRIMARY KEY (roomID, equipmentID),
+
+    CONSTRAINT fk_roomeq_room
+       FOREIGN KEY (roomID) REFERENCES Room(roomID),
+    CONSTRAINT fk_roomeq_equipment
+       FOREIGN KEY (equipmentID) REFERENCES Equipment(equipmentID)
+);
+
+-- n:m Beziehung: Was wird für eine Session extra benötigt?
+CREATE TABLE SessionEquipment (
+    sessionID   INT NOT NULL,
+    equipmentID INT NOT NULL,
+    amount      INT DEFAULT 1 CHECK (amount > 0),
+
+    CONSTRAINT pk_sessionequipment
+      PRIMARY KEY (sessionID, equipmentID),
+
+    CONSTRAINT fk_sessioneq_session
+      FOREIGN KEY (sessionID) REFERENCES Session(sessionID),
+    CONSTRAINT fk_sessioneq_equipment
+      FOREIGN KEY (equipmentID) REFERENCES Equipment(equipmentID)
+);
+
+
+-- ======================================================
+-- 7) CONSTRAINTS & REGELN (LOGIK)
+-- ======================================================
+
+-- Zeit-Logik: Ende muss nach Start sein
+ALTER TABLE Event ADD CONSTRAINT check_event_dates CHECK (endDate > startDate);
+ALTER TABLE Session ADD CONSTRAINT check_session_dates CHECK (endTime > startTime);
+ALTER TABLE BoothBooking ADD CONSTRAINT check_booking_dates CHECK (bookingTo > bookingFrom);
+
+-- Werte-Logik: Keine negativen Preise oder Kapazitäten
+ALTER TABLE Room ADD CONSTRAINT check_capacity_positive CHECK (capacity > 0);
+ALTER TABLE TicketType ADD CONSTRAINT check_price_positive CHECK (price >= 0);
+ALTER TABLE TicketType ADD CONSTRAINT check_quota_positive CHECK (quota >= 0);
+ALTER TABLE Person ADD CONSTRAINT uq_person_email UNIQUE (email);
+
+
+-- Status-Logik: Nur erlaubte Werte (Enum-Ersatz)
+ALTER TABLE Ticket ADD CONSTRAINT check_ticket_status
+    CHECK (status IN ('paid', 'reserved', 'cancelled', 'valid', 'used'));
+ALTER TABLE TechCheck ADD CONSTRAINT check_tech_status
+    CHECK (status IN ('OK', 'failed', 'pending'));
+
+-- Aktiviert die Erweiterung für komplexe Indices
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+ALTER TABLE BoothBooking
+    ADD CONSTRAINT no_booth_overlap
+    EXCLUDE USING GIST (
+    boothID WITH =,
+    tsrange(bookingFrom, bookingTo) WITH &&
+);
+
+ALTER TABLE Session
+    ADD CONSTRAINT no_room_overlap
+    EXCLUDE USING GIST (
+    roomID WITH =,
+    tsrange(startTime, endTime) WITH &&
+);
+
+-- ======================================================
+-- 8) TRIGGER & FUNKTIONEN (KOMPLEXE LOGIK)
+-- ======================================================
+
+-- A) SPEAKER-KONFLIKT PRÜFUNG
+-- Verhindert, dass ein Speaker zur gleichen Zeit in zwei Sessions ist.
+CREATE OR REPLACE FUNCTION check_speaker_conflict()
+RETURNS TRIGGER AS $$
+DECLARE
+conflict_count INT;
+BEGIN
+    -- Prüfen, ob der Speaker zur gleichen Zeit woanders spricht
+SELECT COUNT(*)
+INTO conflict_count
+FROM SessionSpeaker ss
+         JOIN Session s ON ss.sessionID = s.sessionID
+WHERE ss.personID = NEW.personID           -- Gleicher Speaker
+  AND ss.sessionID <> NEW.sessionID        -- Nicht die aktuelle Session
+  AND (
+    -- Prüft auf Zeit-Überlappung mit der neuen Session
+    -- (Holt die Zeiten der neuen Session aus der Tabelle Session)
+    SELECT tsrange(s_new.startTime, s_new.endTime) && tsrange(s.startTime, s.endTime)
+FROM Session s_new
+WHERE s_new.sessionID = NEW.sessionID
+    );
+
+IF conflict_count > 0 THEN
+        RAISE EXCEPTION 'Konflikt: Dieser Speaker ist zur gleichen Zeit bereits in einer anderen Session gebucht.';
+END IF;
+
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_check_speaker_conflict
+    AFTER INSERT OR UPDATE ON SessionSpeaker
+                        FOR EACH ROW EXECUTE FUNCTION check_speaker_conflict();
+
+
+-- B) TICKET-KONTINGENT PRÜFUNG
+-- Verhindert, dass mehr Tickets verkauft werden als "quota" erlaubt.
+CREATE OR REPLACE FUNCTION check_ticket_quota()
+RETURNS TRIGGER AS $$
+DECLARE
+current_sold INT;
+    max_quota INT;
+BEGIN
+    -- Kontingent für diesen Typ abrufen
+SELECT quota INTO max_quota FROM TicketType WHERE ticketTypeID = NEW.ticketTypeID;
+
+-- Bisher verkaufte Tickets zählen (inklusive dem neuen, falls AFTER trigger, aber wir nutzen BEFORE)
+SELECT COUNT(*) INTO current_sold FROM Ticket WHERE ticketTypeID = NEW.ticketTypeID;
+
+IF current_sold >= max_quota THEN
+        RAISE EXCEPTION 'Ausverkauft: Das Kontingent für Ticket-Typ ID % ist erschöpft.', NEW.ticketTypeID;
+END IF;
+
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_check_ticket_quota
+    BEFORE INSERT ON Ticket
+    FOR EACH ROW EXECUTE FUNCTION check_ticket_quota();

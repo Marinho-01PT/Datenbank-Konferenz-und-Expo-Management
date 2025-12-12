@@ -107,3 +107,57 @@ VALUES
 ('confirmed', '2025-05-01', '2025-06-03', 1, 1),
 ('confirmed', '2025-05-10', '2025-06-03', 2, 2),
 ('pending',   '2025-08-01', '2025-09-12', 1, 3);
+
+-- 15) EQUIPMENT & MATERIAL (TESTDATEN)
+
+-- Geräte anlegen
+INSERT INTO Equipment (name, description) VALUES
+  ('Beamer 4K', 'Hochauflösender Projektor für Main Hall'),
+  ('Whiteboard', 'Mobiles Whiteboard inkl. Stifte'),
+  ('Handmikrofon', 'Drahtloses Mikrofon für Q&A'),
+  ('Laptop-Adapter USB-C', 'Adapter für MacBooks');
+
+-- Grundausstattung zu Räumen hinzufügen
+-- Raum 1 (Main Hall) hat 2 Mikrofone und 1 Beamer
+INSERT INTO RoomEquipment (roomID, equipmentID, amount) VALUES
+    (1, 1, 1), -- Beamer
+    (1, 3, 2); -- 2 Mikrofone
+
+-- Raum 2 (Workshop Room) hat 1 Whiteboard
+INSERT INTO RoomEquipment (roomID, equipmentID, amount) VALUES
+    (2, 2, 1);
+
+-- Zusatzbedarf für Sessions
+-- Session 1 braucht extra Adapter
+INSERT INTO SessionEquipment (sessionID, equipmentID, amount) VALUES
+    (1, 4, 1);
+
+-- 16) EDGE CASE DATEN (FEHLER PROVOZIEREN)
+
+-- A) Für Q6.4: Eine Session OHNE TechCheck
+-- Wir buchen eine Session in Room 4 ("Meeting Room B"), machen aber keinen Check dort.
+INSERT INTO Session (title, startTime, endTime, language, "level", trackID, roomID)
+VALUES ('Chaos Engineering (No Check)', '2025-06-02 14:00', '2025-06-02 15:30', 'EN', 'Advanced', 1, 4);
+
+-- B) Für Speaker-Stress (Zu wenig Pause)
+-- Speaker 1 (Anna Müller) hat schon Session 1 (endet 11:00 am 01.06.).
+-- Wir geben ihr eine neue Session um 11:05 (nur 5 Min Pause!).
+INSERT INTO Session (title, startTime, endTime, language, "level", trackID, roomID)
+VALUES ('Cloud Security Deep Dive', '2025-06-01 11:05', '2025-06-01 12:00', 'DE', 'Expert', 1, 1);
+
+INSERT INTO SessionSpeaker (personID, sessionID, role, "order")
+VALUES (1, (SELECT sessionID FROM Session WHERE title = 'Cloud Security Deep Dive'), 'Lead', 1);
+
+-- C) Für Equipment-Albtraum (Viel Material)
+-- Eine Session, die extrem viel Zeug braucht (für die Query mit HAVING count > 2)
+INSERT INTO Session (title, startTime, endTime, language, "level", trackID, roomID)
+VALUES ('Live Hacking Demo', '2025-06-01 16:00', '2025-06-01 18:00', 'EN', 'Expert', 1, 1);
+
+-- Wir brauchen die ID der neuen Session
+-- (Da wir SERIAL nutzen, ist es schwer die ID zu raten, besser wir nutzen Subqueries oder schauen nach)
+-- Angenommen, es ist Session 5 :
+INSERT INTO SessionEquipment (sessionID, equipmentID, amount)
+VALUES
+    ((SELECT sessionID FROM Session WHERE title = 'Live Hacking Demo'), 1, 2), -- 2 Beamer
+    ((SELECT sessionID FROM Session WHERE title = 'Live Hacking Demo'), 2, 1), -- 1 Whiteboard
+    ((SELECT sessionID FROM Session WHERE title = 'Live Hacking Demo'), 4, 5); -- 5 Adapter
